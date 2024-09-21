@@ -4,18 +4,20 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 import xgboost as xgb
 
-st.set_page_config('Previsão Preço Seguro Médico', page_icon=':material/medical_information:')
+st.set_page_config('Previsão Preço Plano de Saúde', page_icon=':material/medical_information:')
 
 st.image('./imagem/logotipo.png')
-st.title('Seguro Médico')
+st.title('Plano de Saúde')
 st.subheader('Previsão do valor')
+
 
 def train_model(data):
     X = data.drop(columns='charges')
     y = data['charges']
     
+    
     # Transformação de variáveis categóricas
-    X = pd.get_dummies(X, columns=['sex', 'smoker', 'region', 'activity_level', 'pre_existing_conditions'], drop_first=True)
+    X = pd.get_dummies(X, columns=['sex', 'smoker', 'region', 'activity_level', 'pre_existing_conditions', 'coverage'], drop_first=True)
     
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=45)
     
@@ -30,6 +32,17 @@ data = pd.read_csv('insurance.csv')
 # Adicionar as novas colunas para os novos campos
 data['activity_level'] = np.random.choice(['sedentário', 'moderado', 'ativo'], size=len(data))
 data['pre_existing_conditions'] = np.random.choice(['nenhum', 'diabetes', 'hipertensão'], size=len(data))
+data['coverage'] = np.random.choice(['individual', 'familiar', 'ambulatorial', 'hospitalar'])
+
+# Trocar termos em inglês para o português
+sex_map = {'male': 'homem', 'female': 'mulher'}
+sex_smoker = {'yes': 'sim', 'no': 'não'}
+sex_region = {'southeast': 'sudoeste', 'southwest': 'sudeste', 'northeast': 'noroeste', 'northwest': 'nordeste'}
+        
+data['sex'] = data['sex'].replace(sex_map)
+data['smoker'] = data['smoker'].replace(sex_smoker)
+data['region'] = data['region'].replace(sex_region)
+
 
 # Treinar o modelo e obter as colunas usadas no treinamento
 model, columns = train_model(data)
@@ -39,18 +52,23 @@ with st.sidebar:
     
     # Inputs do usuário
     age = st.number_input('Idade', min_value=0, max_value=120, step=1)
-    sex = st.selectbox('Sexo', ['male', 'female'])
-    bmi = st.number_input('IMC', min_value=0.0, max_value=70.0, step=0.1)
+    sex = st.selectbox('Sexo', ['homem', 'mulher'])
+    bmi = st.number_input('IMC (Índice de Massa Corporal)', min_value=0.0, max_value=70.0, step=0.1)
     children = st.number_input('Número de Filhos', min_value=0, max_value=10, step=1)
-    smoker = st.selectbox('Fumante', ['yes', 'no'])
-    region = st.selectbox('Região', ['southeast', 'southwest', 'northeast', 'northwest'])
+    smoker = st.selectbox('Fumante', ['sim', 'não'])
+    region = st.selectbox('Região', ['sudoeste', 'sudeste', 'noroeste', 'nordeste'])
+    coverage = st.selectbox('Cobertura', ['individual', 'familiar', 'ambulatorial', 'hospitalar'])
 
     # Novo campo: Nível de atividade física
     activity_level = st.selectbox('Nível de Atividade Física', ['sedentário', 'moderado', 'ativo'])
 
     # Novo campo: Histórico de doenças pré-existentes
     pre_existing_conditions = st.multiselect('Doenças Pré-existentes', 
-                                             ['nenhum', 'diabetes', 'hipertensão'],
+                                             ['nenhum', 'diabetes', 'hipertensão',
+                                             'câncer', 
+                                             'Doença hepática',
+                                             'Doença autoimune',
+                                             'Doença cardiovascular'],
                                              default='nenhum')
 
     # Transformar doenças pré-existentes em variáveis dummies
@@ -75,7 +93,7 @@ with st.sidebar:
             'activity_level_sedentário': [1 if activity_level == 'sedentário' else 0],
             'pre_existing_conditions_diabetes': [condition_diabetes],
             'pre_existing_conditions_hipertensão': [condition_hipertension],
-            'pre_existing_conditions_nenhum': [condition_nenhum]
+            'pre_existing_conditions_nenhum': [condition_nenhum] 
         })
         
         # Adicionar colunas que estão faltando no input_data em relação ao conjunto de treinamento
@@ -90,7 +108,7 @@ with st.sidebar:
         prediction = model.predict(input_data) 
 
         # Exibir o resultado fora da sidebar
-        st.session_state['prediction'] = f'O valor previsto do seguro é: ${prediction[0]:,.2f}'
+        st.session_state['prediction'] = f'O valor previsto do plano é: ${prediction[0]:,.2f}'
 
 # Verificar e exibir o resultado fora da sidebar
 if 'prediction' in st.session_state:
